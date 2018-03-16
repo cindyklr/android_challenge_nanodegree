@@ -68,7 +68,7 @@ public class androidFlavorAdapter extends ArrayAdapter<AndroidFlavor> {
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         AndroidFlavor androidFlavor = getitem(position);
-        View rootView = LayoutInflater.from(getContext().inflate(R.layout.list_item_flavor, parent));
+        View rootView = LayoutInflater.from(getContext()).inflate(R.layout.list_item_flavor, parent);
 
         ImageView iconView = (ImageView) rootView.findViewById(R.id.listitem_icon);
         iconView.setImageResource(androidFlavor.image);
