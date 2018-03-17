@@ -4,8 +4,18 @@
 
 1. Creating Project Sunchine
 2. Loading Data from the Internet
+    **Sandwich Club App**
 3. RecyclerView
 4. Intents
+
+    Custom ArrayAdapter
+
+    Movie DB Api
+
+    Parcelables
+
+    **Popular Movies Stage 1**
+
 5. The Application Lifecycle
 6. Preferences
 7. Creating SQLite Databases
@@ -14,4 +24,6 @@
 10. Background Tasks
 11. Completing the UI
 12. Polishig the UI 
+
+    **Popular Movies Stage 2**
 
