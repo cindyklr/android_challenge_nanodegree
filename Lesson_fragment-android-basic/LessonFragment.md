@@ -123,5 +123,102 @@ Android Development Patterns will teach you how to build better apps by explaini
 
 ### Upcoming Changes
 
+We’re going to approach this change in multiple stages through the remainder of this lesson.
 
+- Step 1: Review a Sample App
+- Step 2: Refactor the logic for the four activities to use Fragments
+- Step 3: Modify Main Activity so that it uses a ViewPager
+- Step 4: Add Tabs
 
+Here's an overview of what we'll do at each step:
+
+#### Step 1: Review a Sample App
+
+First you’ll experiment with a sample app that contains a something called a ViewPager. You’ll see how a FragmentPagerAdapter will provide a different Fragment for each “page” that you swipe to. Then we’ll learn a little more about Fragments, to prepare you for the next coding step.
+
+![](fragment12.png "Step one")
+
+#### Step 2: Refactor the logic for the four activities to use Fragments
+
+Next, you’re going to refactor the current Miwok app from the 4 activities (numbers, colors, family, phrases) into the 4 fragments. The user-facing app will look the same, but all the logic to display the list of words will be in the fragments instead of the activity files. Once the logic is inside fragments, we can move to the next step.
+
+- NumbersActivity will contain the NumbersFragment
+- FamilyActivity will contain the FamilyFragment
+- ColorsActivity will contain the ColorsFragment
+- PhrasesActivity will contain the PhrasesFragment
+
+![](fragment13.png "Step two")
+
+#### Step 3: Modify Main Activity so that it uses a ViewPager
+
+A ViewPager allows you to swipe between different “pages” or screens. We’re going to modify the MainActivity so it contains a ViewPager with 4 pages, where each page is a Fragment. We can swipe between each Fragment to see a different list of words.
+
+At this point, we’re removing the layout that had a button for each category. We will also delete the category activities (NumbersActivity, FamilyActivity, ColorsActivity, PhrasesActivity) because the app only has 1 activity now (MainActivity). You can tell that we’re in the MainActivity because the app bar says “Miwok” across all the screens.
+
+![](fragment14.png "Step three")
+
+#### Step 4: Add Tabs
+
+Lastly, once the ViewPager is working, we’ll add tabs across the top of the ViewPager, so you can tap to jump to a specific page.
+
+![](fragment15.png "Step four")
+
+### Sample ViewPager
+
+#### Step 1: Review a Sample App
+
+Let’s play with a sample app to explore how a ViewPager works in a simple scenario.
+
+1. Download this sample app from the [GitHub link](https://github.com/udacity/ud839_ViewPager_Example/tree/quiz) by clicking on the “Download zip” (make sure you are on the "quiz" branch). 
+
+![](fragment16.png "Step one github link")
+
+2. Import this project into Android Studio and run the app on your device.
+
+3. When you open the app, there should be 3 pages to swipe between in this ViewPager. First it should say “Monday”, then “Tuesday”, then “Wednesday.
+
+![](fragment17.png "Step two")
+
+4. Browse around the codebase and see how the layout and Java files are working together. Prepare for the quiz, which will ask you to modify this sample app.
+How does it work?
+
+The ViewPager works by getting its data from an adapter - called a FragmentPagerAdapter.
+
+In our case, we want to customize the adapter to display our own fragments, so we have to use inheritance to subclass the FragmentPagerAdapter. By inheriting, we get all the functionality from the FragmentPagerAdapter for free, and we can add our own customization on top of it. We create the SimpleFragmentPagerAdapter class and extend from the FragmentPagerAdapter class.
+
+When you launch the app on your device, first the ViewPager asks the adapter how many pages there will be. In our case, the adapter says there will be 3 pages. See the SimpleFragmentPagerAdapter getCount() method.
+
+In order for the ViewPager to display page 0, the ViewPager asks the adapter for the 0th fragment. See the SimpleFragmentPagerAdapter getItem(int position) method. When the user swipes leftward, we move onto page 1, which means the ViewPager asks the adapter for the fragment at position 1. When we get to page 2, the ViewPager asks the adapter for the fragment at position 2. Thus, depending on which page (also known as position), the user has swiped to, the corresponding fragment gets shown.
+
+### Intro to Fragments
+A fragment is just a part of an activity. You can have a fragment that takes up part of a screen or a whole screen. Or you can show multiple fragments at the same time to make up a whole screen. Within an activity, you can also swap out different fragments with each other. (You can also have invisible fragments as well, that do some work related to the activity, but we won’t cover those in this course.)
+
+Fragments were introduced in Android when we started building for larger screen devices like tablets. Let me show you an example.
+
+In the master/detail pattern, a list fragment is on the left-side of the screen, while the detail fragment on the right swaps out depending on the list item selected.
+
+![](fragment18.png "fragment")
+
+[image source](https://developer.android.com/guide/components/fragments.html?utm_source=udacity&utm_medium=course&utm_campaign=android_basics#Design%22%20target=%22_blank%22%3ESource%3C/a)
+
+In this case, using fragments is convenient when adapting the app to smaller devices like phones. When the user opens the app on a phone, they can see the list fragment. If they tap on an item in the list, they can navigate to the detail fragment. 
+
+![](fragment19.png "fragment")
+
+On the phone, only 1 fragment is shown at a time. On the tablet, 2 fragments are shown beside each other at the same time, to take advantage of the larger screen real estate available. 
+
+![](fragment20.png "fragment")
+
+This is just one use case for fragments. You can split up the logic of your app into as many fragments as you want. However, splitting it up into too many fragments can cause extra overhead because your Activity will need to manage communication between the fragments.
+
+A Fragment is a Java class. You create your own Fragment, just like you created your own activities. You subclass the Fragment class in the Android framework.
+
+#### Review Inheritance
+
+Remember earlier we discussed the concept of inheritance in Java in which subclasses are derived from a superclass. In our original code, the Activity class created by the Android framework is the superclass and classes we created such as the MainActivity or NumbersActivity are subclasses that inherit from the Activity class.
+
+![](fragment21.png "fragment inheritance")
+
+Similarly, the Fragment class is a class provided by the Android framework. The fragments we've create - NumbersFragment, ColorsFragment, etc - are subclasses that inherit from the Fragment super class. 
+
+![](fragment22.png "fragment inheritance")
