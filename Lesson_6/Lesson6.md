@@ -186,5 +186,50 @@ For more information on how to use either of them check out the documentation [h
 
 ## Preference Change Listener
 
+One option for loading up our preferences would be to read from SharedPreferences in the onResume or onStart callback.
+But there a better way.
+
+![](lesson6_17_preferences_listener "SharedPreferenceChangeListener")
+
+1. Determine Activity that needs to get called when the preferences changed
+2. Implement OnSharedPreferencesChangeListener
+3. Link the OnSharedPreferencesChangeListener with the sharedPreferenceObject it should be listening to (registerOnSharedPreferenceChangeListener).
+4. Cleanup : unregister the listener when the activity is shut down (unrefisterOnSharedPreferenceListener)
+
+In MainActivity : 
+```java
+public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
+    ...
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        PreferenceManager.getDefaultSharedPreferences(this).unregisterOnSharedPreferenceChangeListener(this);
+
+    }
+
+    private void setupSharedPreferences() {
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        mVisualizerView.setShowBass(sharedPreferences.getBoolean(getString(R.string.pref_show_bass_key),
+                getResources().getBoolean(R.bool.pref_show_bass_default)));
+        mVisualizerView.setShowMid(sharedPreferences.getBoolean(getString(R.string.pref_show_mid_range_key),
+                getResources().getBoolean(R.bool.pref_show_mid_range_default)));
+        mVisualizerView.setShowTreble(sharedPreferences.getBoolean(getString(R.string.pref_show_treble_key),
+                getResources().getBoolean(R.bool.pref_show_treble_default)));
+        mVisualizerView.setMinSizeScale(1);
+        mVisualizerView.setColor(getString(R.string.pref_color_red_value));
+        // Register the listener
+        sharedPreferences.registerOnSharedPreferenceChangeListener(this);
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+        if (key.equals(getString(R.string.pref_show_bass_key))) {
+            mVisualizerView.setShowBass.getBoolean(key, getResources().getBoolean(R.bool.pref_show_bass_default))
+        }
+    }
+}
+```
+
+## List Preference
 
 
