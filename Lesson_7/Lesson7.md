@@ -190,4 +190,80 @@ protected void onCreate(Bundle savedInstanceState) {
 
 ## Adding Guests
 
+Read guest's name from the UI, in MainActivity :
+```java
+// Create local EditText fields for mNewGuestNameEditText and mNewPartySizeEditText
+private EditText mNewGuestNameEditText;
+private EditText mNewPartySizeEditText;
 
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+    ... 
+
+    // Set the Edit texts to the corresponding views using findViewById
+    mNewGuestNameEditText = (EditText) this.findViewById(R.id.person_name_edit_text);
+    mNewPartySizeEditText = (EditText) this.findViewById(R.id.party_count_edit_text);
+    ...
+}
+
+public void addToWaitlist(View view) {
+    // check if any of the EditTexts are empty, return if so
+    if (mNewGuestNameEditText.getText().length() == 0 || 
+    mNewPartySizeEditText.getText().length() == 0) {
+        return;
+    }
+    // Create an integer to store the party size and initialize to 1
+    int partySize = 1;
+    // Use Integer.parseInt to parse mNewPartySizeEditText.getText to an integer
+    try {
+        //mNewPartyCountEditText inputType="number", so this should always work
+        partySize = Integer.parseInt(mNewPartySizeEditText.getText().toString());
+    } catch (NumberFormatException ex) {
+        // Make sure you surround the Integer.parseInt with a try catch and log any exception
+        Log.e(LOG_TAG, "Failed to parse party size text to number: " + ex.getMessage());
+    }
+
+    // call addNewGuest with the guest name and party size
+    // Add guest info to mDb
+    addNewGuest(mNewGuestNameEditText.getText().toString(), partySize);
+
+    // call mAdapter.swapCursor to update the cursor by passing in getAllGuests()
+    // Update the cursor in the adapter to trigger UI to display the new list
+    mAdapter.swapCursor(getAllGuests());
+
+    // To make the UI look nice, call .getText().clear() on both EditTexts, also call clearFocus() on mNewPartySizeEditText
+    //clear UI text fields
+    mNewPartySizeEditText.clearFocus();
+    mNewGuestNameEditText.getText().clear();
+    mNewPartySizeEditText.getText().clear();
+}
+
+private long addNewGuest(String name, int partySize) {
+    // Inside, create a ContentValues instance to pass the values onto the insert query
+    ContentValues cv = new ContentValues();
+    // call put to insert the name value with the key COLUMN_GUEST_NAME
+    cv.put(WaitlistContract.WaitlistEntry.COLUMN_GUEST_NAME, name);
+    // call put to insert the party size value with the key COLUMN_PARTY_SIZE
+    cv.put(WaitlistContract.WaitlistEntry.COLUMN_PARTY_SIZE, partySize);
+    // call insert to run an insert query on TABLE_NAME with the ContentValues created
+    return mDb.insert(WaitlistContract.WaitlistEntry.TABLE_NAME, null, cv);
+}
+```
+
+## Swap cursor
+
+In GuestListAdapter :
+```java
+public void swapCursor(Cursor newCursor) {
+    // Inside, check if the current cursor is not null, and close it if so
+    // Always close the previous mCursor first
+    if (mCursor != null) mCursor.close();
+    // Update the local mCursor to be equal to  newCursor
+    mCursor = newCursor;
+    // Check if the newCursor is not null, and call this.notifyDataSetChanged() if so
+    if (newCursor != null) {
+        // Force the RecyclerView to refresh
+        this.notifyDataSetChanged();
+    }
+}
+```
