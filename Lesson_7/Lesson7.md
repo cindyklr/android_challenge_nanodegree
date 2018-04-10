@@ -267,3 +267,57 @@ public void swapCursor(Cursor newCursor) {
     }
 }
 ```
+## Removing guests
+
+In MainActivity : 
+
+```java
+private boolean removeGuest(long id) {
+    // Inside, call mDb.delete to pass in the TABLE_NAME and the condition that WaitlistEntry._ID equals id
+    return mDb.delete(WaitlistContract.WaitlistEntry.TABLE_NAME, WaitlistContract.WaitlistEntry._ID + "=" + id, null) > 0;
+}
+```
+
+In GuestListAdapter, we need to add the guest's id in the UI :
+```java
+@Override
+public void onBindViewHolder(GuestViewHolder holder, int position) {
+    ...
+    // Retrieve the id from the cursor and
+    long id = mCursor.getLong(mCursor.getColumnIndex(WaitlistContract.WaitlistEntry._ID));
+    // Set the tag of the itemview in the holder to the id
+    holder.itemView.setTag(id);
+}
+```
+
+Then in MainActivity, **onCreate** method, create a new  **ItemTouchHelper** :
+```java
+...
+// Create a new ItemTouchHelper with a SimpleCallback that handles both LEFT and RIGHT swipe directions
+new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+
+    // Override onMove and simply return false inside
+    @Override
+    public boolean onMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, RecyclerView.ViewHolder target) {
+        //do nothing, we only care about swiping
+        return false;
+    }
+
+    // Override onSwiped
+    @Override
+    public void onSwiped(RecyclerView.ViewHolder viewHolder, int swipeDir) {
+        // Inside, get the viewHolder's itemView's tag and store in a long variable id
+        //get the id of the item being swiped
+        long id = (long) viewHolder.itemView.getTag();
+        // call removeGuest and pass through that id
+        //remove from DB
+        removeGuest(id);
+        // call swapCursor on mAdapter passing in getAllGuests() as the argument
+        //update the list
+        mAdapter.swapCursor(getAllGuests());
+    }
+
+    // attach the ItemTouchHelper to the waitlistRecyclerView
+}).attachToRecyclerView(waitlistRecyclerView);
+```
+
