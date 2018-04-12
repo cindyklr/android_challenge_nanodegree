@@ -41,3 +41,32 @@ In AndroidManifest.xml :
 ```xml
 <uses-permission android:name="com.example.udacity.droidtermexample.TERMS_READ" />
 ```
+
+## Content Resolver
+
+![](lesson_8_8_content_provider.png "Content Resolver")
+
+## Steps for using a Content Provider
+
+```java
+ContentResolver resolver = getContentResolver();
+Cursor cursor = Resolver.query(DroidTermsExampleContract.
+CONTENT_URI, null, null, null, null);
+```
+
+### Four basic actions
+- read from the data: **query()**
+- add a row or rows to the data: **insert()**
+- update the data: **update()**
+- delete a row or rows from the data: **delete()**
+
+## Uniform Resource Identifier
+
+![](lesson_8_10_uri.png "Uniform Resource Identifier")
+
+![](lesson_8_10_uri_example.png "Uniform Resource Identifier example")
+
+![](lesson_8_10_uri_review.png "Uniform Resource Identifier Review")
+
+## Calling the ContentProvider
+
