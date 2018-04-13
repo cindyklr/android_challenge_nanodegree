@@ -70,3 +70,65 @@ CONTENT_URI, null, null, null, null);
 
 ## Calling the ContentProvider
 
+### Make an AsyncTask
+
+The goal is to make an **AsyncTask** that loads the data on a background thread in a Cursor object. It then updates a variable called **mData** in the MainActivity to store the returned **Cursor**.
+
+#### Steps to get the data from the Content Provider and save it into an instance variable :
+
+1. Create an **AsyncTask** with the following generic types **<Void, Void, Cursor>**
+2. In the **doInBackground** method, write the code to access the DroidTermsExample provider and return the **Cursor** object.
+3. Create an instance variable **Cursor mData**.
+4. In the **onPostExecute** method, store the **Cursor** object in **mData**.
+5. Create and execute the **AsyncTask** in **onCreate**.
+
+```java
+// Create an instance variable storing a Cursor called mData
+private Cursor mData;
+
+// Use an async task to do the data fetch off of the main thread.
+public class WordFetchTask extends AsyncTask<Void, Void, Cursor> {
+
+    // Invoked on a background thread
+    @Override
+    protected Cursor doInBackground(Void... params) {
+        // Make the query to get the data
+
+        // Get the content resolver
+        ContentResolver resolver = getContentResolver();
+
+        // Call the query method on the resolver with the correct Uri from the contract class
+        Cursor cursor = resolver.query(DroidTermsExampleContract.CONTENT_URI,
+                null, null, null, null);
+        return cursor;
+    }
+
+    // Invoked on UI thread
+    @Override
+    protected void onPostExecute(Cursor cursor) {
+        super.onPostExecute(cursor);
+
+        // Set the data for MainActivity
+        mData = cursor;
+    }
+}
+
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.activity_main);
+
+    // Get the views
+    mButton = (Button) findViewById(R.id.button_next);
+
+    // Run the database operation to get the cursor off of the main thread
+    // Create and execute your AsyncTask here
+    new WordFetchTask().execute();
+}
+```
+
+## Structure of the Data
+
+
+
+
