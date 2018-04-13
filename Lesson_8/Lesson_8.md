@@ -129,6 +129,85 @@ protected void onCreate(Bundle savedInstanceState) {
 
 ## Structure of the Data
 
+![](lesson_8_19_structure_data.png "structure of the data")
+
+## Working with Cursors 
+
+![](lesson_8_20_working_cursor.png "Methods to use with Cursor")
+
+![](lesson_8_20_example_working_cursor.png "Example Method to use with Cursor")
+
+```java
+// Invoked on UI thread
+@Override
+protected void onPostExecute(Cursor cursor) {
+    super.onPostExecute(cursor);
+    // Initialize anything that you need the cursor for, such as setting up
+    // the screen with the first word and setting any other instance variables
+
+    //Set up a bunch of instance variables based off of the data
+
+    // Set the data for MainActivity
+    mData = cursor;
+    // Get the column index, in the Cursor, of each piece of data
+    mDefCol = mData.getColumnIndex(DroidTermsExampleContract.COLUMN_DEFINITION);
+    mWordCol = mData.getColumnIndex(DroidTermsExampleContract.COLUMN_WORD);
+
+    // Set the initial state
+    nextWord();
+}
+
+public void showDefinition() {
+    // Show the definition
+    if (mData != null) {
+        // Show the definition TextView
+        mDefinitionTextView.setVisibility(View.VISIBLE);
+
+        // Change button text
+        mButton.setText(getString(R.string.next_word));
+
+        mCurrentState = STATE_SHOWN;
+    }
+}
 
 
+public void nextWord() {
+    // Go to the next word in the Cursor, show the next word and hide the definition
+    // Note that you shouldn't try to do this if the cursor hasn't been set yet.
+    // If you reach the end of the list of words, you should start at the beginning again.
+
+    // First, it checks if the cursor has been set. 
+    // If it has, it tries to move the cursor to the next value, using moveToNext. 
+    // This will return false if it cannot, in which case, 
+    // we call moveToFirst to go back to the first row in the Cursor.
+
+    if (mData != null) {
+        // Move to the next position in the cursor, if there isn't one, move to the first
+        if (!mData.moveToNext()) {
+            mData.moveToFirst();
+        }
+        // At this point, the cursor is positioned at the correct row, 
+        // so we set the definition view to invisible, 
+        // change the button text to "Show Definition"
+        mDefinitionTextView.setVisibility(View.INVISIBLE);
+
+        // Change button text
+        mButton.setText(getString(R.string.show_definition));
+
+        // Finally we setup the correct values for the word and 
+        // the hidden definition text, using the Cursors' getString method.
+        mWordTextView.setText(mData.getString(mWordCol));
+        mDefinitionTextView.setText(mData.getString(mDefCol));
+
+        mCurrentState = STATE_HIDDEN;
+    }
+}
+
+ @Override
+protected void onDestroy() {
+    super.onDestroy();
+    // Remember to close your cursor!
+    mData.close();
+}
+```
 
