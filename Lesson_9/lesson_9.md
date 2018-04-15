@@ -787,4 +787,226 @@ cursor.setNotificationUri(getContext().getContentResolver(), uri);
 
 ## BulkInsert
 
+Instead of one insert at a time, the bulkInsert try to insert an array of content values, not just one set, into the database.
+
+In WeatherProvider class : 
+
+```java
+ /**
+    * Handles requests to insert a set of new rows. In Sunshine, we are only going to be
+    * inserting multiple rows of data at a time from a weather forecast. There is no use case
+    * for inserting a single row of data into our ContentProvider, and so we are only going to
+    * implement bulkInsert. In a normal ContentProvider's implementation, you will probably want
+    * to provide proper functionality for the insert method as well.
+    *
+    * @param uri    The content:// URI of the insertion request.
+    * @param values An array of sets of column_name/value pairs to add to the database.
+    *               This must not be {@code null}.
+    *
+    * @return The number of values that were inserted.
+    */
+@Override
+public int bulkInsert(@NonNull Uri uri, @NonNull ContentValues[] values) {
+    final SQLiteDatabase db = mOpenHelper.getWritableDatabase();
+
+    switch (sUriMatcher.match(uri)) {
+
+//  1. Only perform our implementation of bulkInsert if the URI matches the CODE_WEATHER code
+        case CODE_WEATHER:
+            db.beginTransaction();
+            int rowsInserted = 0;
+            try {
+                for (ContentValues value : values) {
+                    long weatherDate =
+                            value.getAsLong(WeatherContract.WeatherEntry.COLUMN_DATE);
+                    if (!SunshineDateUtils.isDateNormalized(weatherDate)) {
+                        throw new IllegalArgumentException("Date must be normalized to insert");
+                    }
+
+                    long _id = db.insert(WeatherContract.WeatherEntry.TABLE_NAME, null, value);
+                    if (_id != -1) {
+                        rowsInserted++;
+                    }
+                }
+                db.setTransactionSuccessful();
+            } finally {
+                db.endTransaction();
+            }
+
+            if (rowsInserted > 0) {
+                getContext().getContentResolver().notifyChange(uri, null);
+            }
+
+//  2. Return the number of rows inserted from our implementation of bulkInsert
+            return rowsInserted;
+
+//  3. If the URI does match match CODE_WEATHER, return the super implementation of bulkInsert
+        default:
+            return super.bulkInsert(uri, values);
+    }
+}
+```
+## Add delete functionnality
+
+You only need to implementing delete for the **CODE_WEATHER** case because you're deleting the entire database. You also don't have to actually use this delete functionality in the app, so it's up to you to run the tests and make sure everything was completed correctly. With that said, here's the code for delete:
+
+```java
+@Override
+public int delete(@NonNull Uri uri, String selection, String[] selectionArgs) {
+    int numRowsDeleted;
+    if (null == selection) selection = "1";
+    switch (sUriMatcher.match(uri)) {
+        case CODE_WEATHER:
+            numRowsDeleted = mOpenHelper.getWritableDatabase().delete(
+                    WeatherContract.WeatherEntry.TABLE_NAME,
+                    selection,
+                    selectionArgs);
+            break;
+        default:
+            throw new UnsupportedOperationException("Unknown uri: " + uri);
+    }
+
+    if (numRowsDeleted != 0) {
+        getContext().getContentResolver().notifyChange(uri, null);
+    }
+    return numRowsDeleted;
+}
+```
+## Using a CursorLoader
+
+Right now, Sunshine uses an AsyncTaskLoader to load weather data on a background thread, but this loads weather data directly from a JSON response, and not from the data source we just built: the WeatherProvider! So, in the next couple steps, we’ll improve the Sunshine code and take advantage of a different loader class to efficiently to load data from the WeatherProvider. **The best way to asynchronously load data from any ContentProvider is with a CursorLoader**.
+
+A CursorLoader is a subclass of AsyncTaskLoader that queries a ContentProvider, via a ContentResolver and specific URI, and returns a Cursor of desired data. This loader runs its query on a background thread so that it doesn’t block the UI. When a CursorLoader is active, it is tied to a URI, and you can choose to have it monitor this URI for any changes in data; this means that the CursorLoader can deliver new results whenever the contents of our weather database change, and we can automatically update the UI to reflect any weather change!
+
+### Modify the ForecastAdapter
+
+Our first step will be to modify the ForecastAdapter so that it creates views based on the data in a Cursor (and not an array of Strings). So, in the ForecastAdapter class, we’ll replace the global variable **private String[] mWeatherData** with a Cursor that holds that data: **private Cursor mCursor**.
+
+Then, we’ll change the onBindViewHolder method so that it takes all of the data from a cursor and uses that to populate the views. To read the correct weather data from a Cursor, you have to read that data from the correct position with a call to: **mCursor.moveToPosition(position)**. Then we’ll extract all the relevant values from the Cursor, and finally set the text to display the correct weather summary. To read in data from a Cursor, you can use methods like getInt or getString on that Cursor, ex. **double highInCelsius = mCursor.getDouble(MainActivity.INDEX_WEATHER_MAX_TEMP)**. Then create a string to summarize the weather **String weatherSummary = dateString + " - " + description + " - " + highAndLowTemperature** and display it!
+
+You'll also want to update the getItemCount method to reflect the number of items in the Cursor, which you can get with a call to: **mCursor.getCount()**.
+
+And replace the setWeatherData method with a new method called swapCursor, which should take in a new Cursor and update the value of the old Cursor. This is how changes in data will be managed.
+
+Here is the swapCursor method:
+
+```java
+void swapCursor(Cursor newCursor) {
+        mCursor = newCursor;
+        // After the new Cursor is set, call notifyDataSetChanged
+        notifyDataSetChanged();
+}
+```
+### Create a CursorLoader in MainActivity
+
+The next step will be to update the code in the MainActivity and replace the AsyncTaskLoader with a CursorLoader.
+
+First, you’ll want to change the loader callbacks so that the loader manager knows that it is returning a Cursor: **LoaderManager.LoaderCallbacks<Cursor>**. You’ll also change the methods for 1) onCreateLoader, 2) onLoadFinished, and 3) onLoaderReset to reflect this change in data structure.
+
+To change the initialization of the loader, we’ll create and return a CursorLoader in the onCreateLoader method. A CursorLoader is created similar to how you create a query - by passing in a URI that points to our data source, with a sortOrder and selection; you’ll also pass in a Context (this) as the first argument. I’ll leave the construction of the projection and deletion to you, but your final loader creation code should look like this:
+
+```java
+return new CursorLoader(this,
+                       forecastQueryUri,
+                       MAIN_FORECAST_PROJECTION,
+                       selection,
+                       null,
+                       sortOrder);
+```
+
+Finally, in our onLoaderReset method, we should clear out the adapter that is displaying the data with another call to swapCursor that clears the data: **mForecastAdapter.swapCursor(null)**.
+
+One of the biggest changes to the Sunshine code was to update the ForecastAdapter and change its onBindViewHolder method so that it takes all of the data from a cursor and uses that to populate the views.
+
+The final implementation of onBindViewHolder should look like this:
+
+```java
+@Override
+public void onBindViewHolder(ForecastAdapterViewHolder forecastAdapterViewHolder, int position) {
+
+    // Move the cursor to the appropriate position
+    mCursor.moveToPosition(position);
+
+    // Generate a weather summary with the date, description, high and low
+    /* Read date from the cursor */
+    long dateInMillis = mCursor.getLong(MainActivity.INDEX_WEATHER_DATE);
+    /* Get human readable string using our utility method */
+    String dateString = SunshineDateUtils.getFriendlyDateString(mContext, dateInMillis, false);
+    /* Use the weatherId to obtain the proper description */
+    int weatherId = mCursor.getInt(MainActivity.INDEX_WEATHER_CONDITION_ID);
+    String description = SunshineWeatherUtils.getStringForWeatherCondition(mContext, weatherId);
+    /* Read high temperature from the cursor (in degrees celsius) */
+    double highInCelsius = mCursor.getDouble(MainActivity.INDEX_WEATHER_MAX_TEMP);
+    /* Read low temperature from the cursor (in degrees celsius) */
+    double lowInCelsius = mCursor.getDouble(MainActivity.INDEX_WEATHER_MIN_TEMP);
+
+    String highAndLowTemperature =
+            SunshineWeatherUtils.formatHighLows(mContext, highInCelsius, lowInCelsius);
+
+    String weatherSummary = dateString + " - " + description + " - " + highAndLowTemperature;
+
+    // Display the summary that you created above
+    forecastAdapterViewHolder.weatherSummary.setText(weatherSummary);
+}
+```
+
+## More Weather Details
+
+The new Detail Layout should include a text view for each of the following in a Linear Layout:
+
+- The selected day's date
+- The selected day's weather description
+- The selected day's high temperature
+- The selected day's low temperature
+- The selected day's humidity
+- The selected day's pressure
+- The selected day's wind information And then update the DetailActivity to find those views by ID and initialize them in **onCreate**
+
+Create a projection array of Strings and indices to help query weather details for that date!
+
+Then set the DetailActivity class to implement LoaderManager.LoaderCallbacks and override the appropriate methods:
+
+- **onCreateLoader**: Checks if the loader requested is our detail loader, return the appropriate CursorLoader.
+```java
+@Override
+public Loader<Cursor> onCreateLoader(int loaderId, Bundle loaderArgs) {
+    switch (loaderId) {
+        case ID_DETAIL_LOADER:
+            return new CursorLoader(this,
+                    mUri,
+                    WEATHER_DETAIL_PROJECTION,
+                    null,
+                    null,
+                    null);
+        default:
+            throw new RuntimeException("Loader Not Implemented: " + loaderId);
+    }
+}
+```
+- **onLoadFinished**: Gets all the weather detail information from the cursor and displays them in the appropriate views.
+```java
+boolean cursorHasValidData = false;
+if (data != null && data.moveToFirst()) {
+   /* We have valid data, continue on to bind the data to the UI */
+   cursorHasValidData = true;
+}
+if (!cursorHasValidData) {
+   /* No data to display, simply return and do nothing */
+   return;
+}
+```
+- **onLoaderReset**: Don't do anything in it yet
+
+Initialize the loader in DetailActivity's **onCreate**
+
+Then Update the **ForecastAdapterOnClickHandler** and refactor onClick to accept a long as its parameter rather than a String and in **onClick** instead of passing the String for the clicked item, pass the date from the cursor.
+
+And finally refactor MainActivity's onClick to build a URI for the clicked date and and pass it to the DetailActivty with the Intent using setData.
+
+```java
+long localDateMidnightGmt = data.getLong(INDEX_WEATHER_DATE);
+String dateText = SunshineDateUtils.getFriendlyDateString(this, localDateMidnightGmt, true);
+mDateView.setText(dateText);
+```
+
 
