@@ -92,7 +92,7 @@ For more detail on Quantity Strings, check out the [documentation](https://devel
 
 ![](lesson_10_12_sunshine_intent_services.png "Intent Services Sunshine App")
 
-![](lesson_10_12_reminderTask.png "ReminderTask")
+![](lesson_10_12_reminderTask.png "ReminderTasks")
 
 Steps to Implement the **IntentService**
 - Create a new class that extends IntentService
@@ -101,3 +101,88 @@ Steps to Implement the **IntentService**
 
 ## Add an IntentService
 
+In ReminderTasks class: 
+```java
+// 1. Create a class called ReminderTasks
+public class ReminderTasks {
+
+    // 2. Create a public static constant String called ACTION_INCREMENT_WATER_COUNT
+    public static final String ACTION_INCREMENT_WATER_COUNT = "increment-water-count";
+
+    //  6. Create a public static void method called executeTask
+    //  7. Add a Context called context and String parameter called action to the parameter list
+    public static void executeTask(Context context, String action) {
+        // 8. If the action equals ACTION_INCREMENT_WATER_COUNT, 
+        // call this class's incrementWaterCount
+        if (ACTION_INCREMENT_WATER_COUNT.equals(action)) {
+            incrementWaterCount(context);
+        }
+    }
+
+    // 3. Create a private static void method called incrementWaterCount
+    // 4. Add a Context called context to the argument list
+    private static void incrementWaterCount(Context context) {
+    // 5. From incrementWaterCount, call the PreferenceUtility method 
+    // that will ultimately update the water count
+        PreferenceUtilities.incrementWaterCount(context);
+    }
+}
+```
+
+In WaterReminderIntentService class :
+```java
+/**
+ * An {@link IntentService} subclass for handling asynchronous task requests in
+ * a service on a separate handler thread.
+ */
+// 9. Create WaterReminderIntentService and extend it from IntentService
+public class WaterReminderIntentService extends IntentService {
+
+    // 10. Create a default constructor that calls super with the name of this class
+    public WaterReminderIntentService() {
+        super("WaterReminderIntentService");
+    }
+
+    // 11. Override onHandleIntent
+    @Override
+    protected void onHandleIntent(Intent intent) {
+        // 12. Get the action from the Intent that started this Service
+        String action = intent.getAction();
+
+        // 13. Call ReminderTasks.executeTask and pass in the action to be performed
+        ReminderTasks.executeTask(this, action);
+    }
+}
+```
+
+In AndroidManifest.xml : 
+```xml
+</activity>
+    <!-- 14. Declare WaterReminderIntentService in the Manifest and set the exported
+        attribute to false (it controls wether other applications can access the service)-->
+    <!--This is required for immediate syncs -->
+    <service
+        android:name=".sync.WaterReminderIntentService"
+        android:exported="false"/>
+ </application>
+```
+
+In MainActivity : 
+```java
+/**
+* Adds one to the water count and shows a toast
+*/
+public void incrementWater(View view) {
+    if (mToast != null) mToast.cancel();
+    mToast = Toast.makeText(this, R.string.water_chug_toast, Toast.LENGTH_SHORT);
+    mToast.show();
+
+    // 15. Create an explicit intent for WaterReminderIntentService
+    Intent incrementWaterCountIntent = new Intent(this, WaterReminderIntentService.class);
+    // 16. Set the action of the intent to ACTION_INCREMENT_WATER_COUNT
+    incrementWaterCountIntent.setAction(ReminderTasks.ACTION_INCREMENT_WATER_COUNT);
+    // 17. Call startService and pass the explicit intent you just created
+    startService(incrementWaterCountIntent);
+
+}
+```
