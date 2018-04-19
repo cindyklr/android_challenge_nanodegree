@@ -186,3 +186,38 @@ public void incrementWater(View view) {
 
 }
 ```
+
+## Notifications
+
+
+- [Material Design Guide on Notifications](https://material.io/guidelines/patterns/notifications.html)
+- [Notifications on Android Developer Website](https://developer.android.com/guide/topics/ui/notifiers/notifications.html)
+
+## Notifications Oreo
+
+### Notifications Channels
+
+Fine grained notification control for users, with a consistent setting UI.
+
+![](lesson_10_15_channel.png "notification channel")
+
+![](lesson_10_15_group.png "notification group")
+
+[Notification channel](https://developer.android.com/guide/topics/ui/notifiers/notifications.html#ManageChannels)
+
+[Notification badge](https://developer.android.com/guide/topics/ui/notifiers/notifications.html#Badges)
+
+![](lesson_10_15_channel_id.png "channel id")
+
+![](lesson_10_15_channel_id_2.png "channel id")
+
+![](lesson_10_15_badge.png "notification badge")
+
+![](lesson_10_15_options_1.png "notification options")
+
+![](lesson_10_15_options_2.png "notification options")
+
+![](lesson_10_15_options_3.png "notification options")
+
+## Pending Intents
+
