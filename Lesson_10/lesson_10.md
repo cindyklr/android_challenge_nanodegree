@@ -576,4 +576,324 @@ In this class we are only covering **FirebaseJobDispatcher**. Depending on where
 
 ## Adding a JobService
 
+The end goal is to trigger a notification every 15 minutes when the device is charging.
+
+Follow these steps : 
+- add the gradle dependency for FirebaseJobDispatcher
+- create a new task in the ReminderTasks
+- create a new service that extends from JobService
+- add the JobService to the manifest
+- schedule with FirebaseJobDispatcher
+
+The constraints are:
+![](lesson_10_24_constraints.png "Constraints")
+
+In build.gradle file:
+```
+dependencies {
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    compile 'com.android.support:appcompat-v7:26.0.1'
+    // 1. Add gradle dependency for Firebase Job Dispatcher
+    compile 'com.firebase:firebase-jobdispatcher:0.5.2'
+}
+```
+
+In ReminderTasks class:
+```java
+public class ReminderTasks {
+
+    public static final String ACTION_INCREMENT_WATER_COUNT = "increment-water-count";
+    public static final String ACTION_DISMISS_NOTIFICATION = "dismiss-notification";
+    // add a new action's name
+    static final String ACTION_CHARGING_REMINDER = "charging-reminder";
+
+    public static void executeTask(Context context, String action) {
+        if (ACTION_INCREMENT_WATER_COUNT.equals(action)) {
+            incrementWaterCount(context);
+        } else if (ACTION_DISMISS_NOTIFICATION.equals(action)) {
+            NotificationUtils.clearAllNotifications(context);
+        } else if (ACTION_CHARGING_REMINDER.equals(action)) {
+            // check for that action 
+            issueChargingReminder(context);
+        }
+    }
+
+    private static void incrementWaterCount(Context context) {
+        PreferenceUtilities.incrementWaterCount(context);
+        NotificationUtils.clearAllNotifications(context);
+    }
+
+    // COMPLETED (2) Create an additional task for issuing a charging reminder notification.
+    // This should be done in a similar way to how you have an action for incrementingWaterCount
+    // and dismissing notifications. This task should both create a notification AND
+    // increment the charging reminder count (hint: there is a method for this in PreferenceUtilities)
+    // When finished, you should be able to call executeTask with the correct parameters to execute
+    // this task. Don't forget to add the code to executeTask which actually calls your new task!
+
+    // create the new action
+    private static void issueChargingReminder(Context context) {
+        PreferenceUtilities.incrementChargingReminderCount(context);
+        NotificationUtils.remindUserBecauseCharging(context);
+    }
+}
+```
+
+Create a new job service WaterReminderFirebaseJobService that actually runs the task:
+```java
+import com.firebase.jobdispatcher.Job;
+// do not use import android.app.job.JobService !!! 
+import com.firebase.jobdispatcher.JobParameters;
+import com.firebase.jobdispatcher.JobService;
+import com.firebase.jobdispatcher.RetryStrategy;
+
+// 3. WaterReminderFirebaseJobService should extend from JobService
+public class WaterReminderFirebaseJobService extends JobService {
+
+    private AsyncTask mBackgroundTask;
+
+
+    // 4. Override onStartJob
+    /**
+     * The entry point to your Job. Implementations should offload work to another thread of
+     * execution as soon as possible.
+     *
+     * This is called by the Job Dispatcher to tell us we should start our job. Keep in mind this
+     * method is run on the application's main thread, so we need to offload work to a background
+     * thread.
+     *
+     * @return whether there is more work remaining.
+     */
+    @Override
+    public boolean onStartJob(final JobParameters jobParameters) {
+
+        // 5. By default, jobs are executed on the main thread, so make an anonymous class extending
+        //  AsyncTask called mBackgroundTask.
+        // Here's where we make an AsyncTask so that this is no longer on the main thread
+        mBackgroundTask = new AsyncTask() {
+
+            // 6. Override doInBackground
+            @Override
+            protected Object doInBackground(Object[] params) {
+                // 7. Use ReminderTasks to execute the new charging reminder task you made, use
+                // this service as the context (WaterReminderFirebaseJobService.this) and return null
+                // when finished.
+                Context context = WaterReminderFirebaseJobService.this;
+                ReminderTasks.executeTask(context, ReminderTasks.ACTION_CHARGING_REMINDER);
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Object o) {
+                // 8. Override onPostExecute and called jobFinished. Pass the job parameters
+                // and false to jobFinished. This will inform the JobManager that your job is done
+                // and that you do not want to reschedule the job.
+
+                /*
+                 * Once the AsyncTask is finished, the job is finished. To inform JobManager that
+                 * you're done, you call jobFinished with the jobParamters that were passed to your
+                 * job and a boolean representing whether the job needs to be rescheduled. This is
+                 * usually if something didn't work and you want the job to try running again.
+                 */
+
+                jobFinished(jobParameters, false);
+            }
+        };
+
+        // 9. Execute the AsyncTask
+        mBackgroundTask.execute();
+        // 10. Return true
+        return true;
+    }
+
+    // 11. Override onStopJob
+    /**
+     * Called when the scheduling engine has decided to interrupt the execution of a running job,
+     * most likely because the runtime constraints associated with the job are no longer satisfied.
+     *
+     * @return whether the job should be retried
+     * @see Job.Builder#setRetryStrategy(RetryStrategy)
+     * @see RetryStrategy
+     */
+    @Override
+    public boolean onStopJob(JobParameters jobParameters) {
+        // 12. If mBackgroundTask is valid, cancel it
+        // 13. Return true to signify the job should be retried
+        if (mBackgroundTask != null) mBackgroundTask.cancel(true);
+        return true;
+    }
+}
+```
+
+In the AndroidManifest.xml:
+```xml
+<!-- 14. Add the WaterReminderFirebaseJobService here. It should not be exported and it
+should have an intent filter for the action com.firebase.jobdispatcher.ACTION_EXECUTE -->
+<!-- This is the Service declaration used in conjunction with FirebaseJobDispatcher -->
+<service
+    android:name=".sync.WaterReminderFirebaseJobService"
+    android:exported="false">
+    <intent-filter>
+        <action android:name="com.firebase.jobdispatcher.ACTION_EXECUTE"/>
+    </intent-filter>
+</service>
+```
+
+## Schedule with FirebaseJobDispatcher
+
+In ReminderUtilities class:
+```java
+import com.firebase.jobdispatcher.Constraint;
+import com.firebase.jobdispatcher.Driver;
+import com.firebase.jobdispatcher.FirebaseJobDispatcher;
+import com.firebase.jobdispatcher.GooglePlayDriver;
+import com.firebase.jobdispatcher.Job;
+import com.firebase.jobdispatcher.Lifetime;
+import com.firebase.jobdispatcher.Trigger;
+
+import java.util.concurrent.TimeUnit;
+
+public class ReminderUtilities {
+
+
+    // COMPLETED (15) Create three constants and one variable:
+    //  - REMINDER_INTERVAL_SECONDS should be an integer constant storing the number of seconds in 15 minutes
+    //  - SYNC_FLEXTIME_SECONDS should also be an integer constant storing the number of seconds in 15 minutes
+    //  - REMINDER_JOB_TAG should be a String constant, storing something like "hydration_reminder_tag"
+    //  - sInitialized should be a private static boolean variable which will store whether the job
+    //    has been activated or not
+    /*
+     * Interval at which to remind the user to drink water. Use TimeUnit for convenience, rather
+     * than writing out a bunch of multiplication ourselves and risk making a silly mistake.
+     */
+    private static final int REMINDER_INTERVAL_MINUTES = 15;
+    private static final int REMINDER_INTERVAL_SECONDS = (int) (TimeUnit.MINUTES.toSeconds(REMINDER_INTERVAL_MINUTES));
+    private static final int SYNC_FLEXTIME_SECONDS = REMINDER_INTERVAL_SECONDS;
+
+    private static final String REMINDER_JOB_TAG = "hydration_reminder_tag";
+
+    private static boolean sInitialized;
+
+    // 16. Create a synchronized, public static method called scheduleChargingReminder that takes
+    // in a context. This method will use FirebaseJobDispatcher to schedule a job that repeats roughly
+    // every REMINDER_INTERVAL_SECONDS when the phone is charging. It will trigger WaterReminderFirebaseJobService
+    // Checkout https://github.com/firebase/firebase-jobdispatcher-android for an example
+    synchronized public static void scheduleChargingReminder(@NonNull final Context context) {
+
+
+        // 17. If the job has already been initialized, return
+        if (sInitialized) return;
+
+        // 18. Create a new GooglePlayDriver
+        Driver driver = new GooglePlayDriver(context);
+        // 19. Create a new FirebaseJobDispatcher with the driver
+        FirebaseJobDispatcher dispatcher = new FirebaseJobDispatcher(driver);
+
+        // 20. Use FirebaseJobDispatcher's newJobBuilder method to build a job which:
+        // - has WaterReminderFirebaseJobService as it's service
+        // - has the tag REMINDER_JOB_TAG
+        // - only triggers if the device is charging
+        // - has the lifetime of the job as forever
+        // - has the job recur
+        // - occurs every 15 minutes with a window of 15 minutes. You can do this using a
+        //   setTrigger, passing in a Trigger.executionWindow
+        // - replaces the current job if it's already running
+        // Finally, you should build the job.
+        /* Create the Job to periodically create reminders to drink water */
+        Job constraintReminderJob = dispatcher.newJobBuilder()
+                /* The Service that will be used to write to preferences */
+                .setService(WaterReminderFirebaseJobService.class)
+                /*
+                 * Set the UNIQUE tag used to identify this Job.
+                 */
+                .setTag(REMINDER_JOB_TAG)
+                /*
+                 * Network constraints on which this Job should run. In this app, we're using the
+                 * device charging constraint so that the job only executes if the device is
+                 * charging.
+                 *
+                 * In a normal app, it might be a good idea to include a preference for this,
+                 * as different users may have different preferences on when you should be
+                 * syncing your application's data.
+                 */
+                .setConstraints(Constraint.DEVICE_CHARGING)
+                /*
+                 * setLifetime sets how long this job should persist. The options are to keep the
+                 * Job "forever" or to have it die the next time the device boots up.
+                 */
+                .setLifetime(Lifetime.FOREVER)
+                /*
+                 * We want these reminders to continuously happen, so we tell this Job to recur.
+                 */
+                .setRecurring(true)
+                /*
+                 * We want the reminders to happen every 15 minutes or so. The first argument for
+                 * Trigger class's static executionWindow method is the start of the time frame
+                 * when the
+                 * job should be performed. The second argument is the latest point in time at
+                 * which the data should be synced. Please note that this end time is not
+                 * guaranteed, but is more of a guideline for FirebaseJobDispatcher to go off of.
+                 */
+                .setTrigger(Trigger.executionWindow(
+                        REMINDER_INTERVAL_SECONDS,
+                        REMINDER_INTERVAL_SECONDS + SYNC_FLEXTIME_SECONDS))
+                /*
+                 * If a Job with the tag with provided already exists, this new job will replace
+                 * the old one.
+                 */
+                .setReplaceCurrent(true)
+                /* Once the Job is ready, call the builder's build method to return the Job */
+                .build();
+
+        // 21. Use dispatcher's schedule method to schedule the job
+        /* Schedule the Job with the dispatcher */
+        dispatcher.schedule(constraintReminderJob);
+
+        // 22. Set sInitialized to true to mark that we're done setting up the job
+        /* The job has been initialized */
+        sInitialized = true;
+    }
+
+}
+```
+
+In MainActivity:
+```java
+@Override
+    protected void onCreate(Bundle savedInstanceState) {
+        ...
+        // 23. Schedule the charging reminder
+        ReminderUtilities.scheduleChargingReminder(this);
+        ...
+}
+```
+
+## Broadcast Receiver
+
+- System Broadcast Intent = a spacial intent sent by the system when events occur on the phone.
+
+Example: 
+![](lesson_10_26_examples_broadcast_intent.png "Examples Broadcast Intents")
+
+- Broadcast Receiver = core android component that enables applications to receive intents that are bradcast by the system or by other applications.
+
+! Even when other components of the application are not running.
+
+Example Offline/Online files:
+
+![](lesson_10_26_offline_online.png "Example offline/online files")
+
+- Intent Filter = expression that says what intents should trigger your component.
+
+![](lesson_10_26_intent_filter_manifest.png "Example Intent Filter Manifest")
+
+![](lesson_10_26_intent_filter.png "Example Intent Filter")
+
+![](lesson_10_26_anti_pattern_warning_manifest.png "Anti-pattern warning Manifest")
+
+![](lesson_10_26_anti_pattern_warning.png "Anti-pattern warning")
+
+![](lesson_10_26_static_dynamic.png "Static vs Dynamic")
+
+![](lesson_10_26_example_dynamic.png "Example Dynamic")
+
 
