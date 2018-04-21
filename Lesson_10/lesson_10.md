@@ -896,4 +896,250 @@ Example Offline/Online files:
 
 ![](lesson_10_26_example_dynamic.png "Example Dynamic")
 
+## Show when charging
+
+The implementation steps:
+- Method that change the plug from grey to pink
+- Intent filter for charging status
+- Broadcast receiver updates color
+- Register broadcast receiver with intent filter
+- Cleanup broadcast receiver in onPause
+
+In MainActivity:
+```java
+    ChargingBroadcastReceiver mChargingReceiver;
+    IntentFilter mChargingIntentFilter;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        ...
+
+        // 5.  Create and instantiate a new instance variable for your ChargingBroadcastReceiver
+        // and an IntentFilter
+        /*
+         * Setup and register the broadcast receiver
+         */
+        mChargingIntentFilter = new IntentFilter();
+        mChargingReceiver = new ChargingBroadcastReceiver();
+        // 6.  Call the addAction method on your intent filter and add Intent.ACTION_POWER_CONNECTED
+        // and Intent.ACTION_POWER_DISCONNECTED. This sets up an intent filter which will trigger
+        // when the charging state changes.
+        mChargingIntentFilter.addAction(Intent.ACTION_POWER_CONNECTED);
+        mChargingIntentFilter.addAction(Intent.ACTION_POWER_DISCONNECTED);
+}
+
+// 7. Override onResume and setup your broadcast receiver. Do this by calling
+// registerReceiver with the ChargingBroadcastReceiver and IntentFilter.
+@Override
+protected void onResume() {
+    super.onResume();
+    registerReceiver(mChargingReceiver, mChargingIntentFilter);
+}
+
+
+// 8. Override onPause and unregister your receiver using the unregisterReceiver method
+@Override
+protected void onPause() {
+    super.onPause();
+    unregisterReceiver(mChargingReceiver);
+}
+
+// 1.  Create a new method called showCharging which takes a boolean. This method should
+// either change the image of mChargingImageView to ic_power_pink_80px if the boolean is true
+// or R.drawable.ic_power_grey_80px it it's not. This method will eventually update the UI
+// when our broadcast receiver is triggered when the charging state changes.
+private void showCharging(boolean isCharging){
+    if (isCharging) {
+        mChargingImageView.setImageResource(R.drawable.ic_power_pink_80px);
+
+    } else {
+        mChargingImageView.setImageResource(R.drawable.ic_power_grey_80px);
+    }
+}
+
+
+// 2.  Create an inner class called ChargingBroadcastReceiver that extends BroadcastReceiver
+private class ChargingBroadcastReceiver extends BroadcastReceiver {
+    // 3. Override onReceive to get the action from the intent and see if it matches the
+    // Intent.ACTION_POWER_CONNECTED. If it matches, it's charging. If it doesn't match it's not
+    // charging.
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        String action = intent.getAction();
+        boolean isCharging = (action.equals(Intent.ACTION_POWER_CONNECTED));
+
+        // 4. Update the UI using the showCharging method you wrote
+        showCharging(isCharging);
+    }
+}
+
+```
+you can use the [Android Debug Bridge](https://developer.android.com/studio/command-line/adb.html) to simulate the phone being plugged and unplugged without actually doing the plugging and unplugging.
+
+### Setup ADB
+
+The Android Debug Bridge, or **adb** as it is affectionately called, is a command line tool. This means that you should be comfortable working in a terminal or shell to use this program. We touched on it briefly in the first lesson. The adb program is stored in your android SDK folder in a subfolder called **platform-tools**. You can find where your SDK is by going to the SDK manager and looking at the SDK location, as shown below:
+
+![](androidsdk.png "Android Sdk")
+
+Once you have the sdk location, you can use adb by typing:
+
+```<YOUR SDK LOCATION>/platform-tools/adb```
+
+If you've added commands to your $PATH before, adb is a great one to add. 
+
+### Helpful adb Commands
+
+To simulate the phone being unplugged from usb charging you can use:
+
+```adb shell dumpsys battery set usb 0```
+
+or if you're on a device Android 6.0 or higher you can use:
+
+```adb shell dumpsys battery unplug```
+
+To "plug" the phone back in, just reset it's charging status using:
+
+```adb shell dumpsys battery reset```
+
+## Getting the current battery state
+
+As mentioned, our code currently contains a bug. Our app adds and removes the dynamic broadcast receiver in **onResume** and **onPause**. When the app is not visible, the plug's image will not update. This can lead to the plug sometimes having the incorrect image when the app starts.
+
+![](lifecycle.png "Lifecycle")
+
+Now we could move the code to dynamically add and remove the broadcast receiver in different lifecycle methods, for example **onCreate** and **onDestroy**, but this would cause us to waste cycles swapping around an image which isn't even on screen. A better approach is to check what the current battery state is when the app resumes and update the image accordingly.
+
+There are two ways to do this, depending on whether you're on API level 23+ or before.
+
+### Getting Charging State on API level 23+
+
+To get the current state of the battery on API level 23+, simply use the battery manager system service:
+
+```java
+BatteryManager batteryManager = (BatteryManager) getSystemService(BATTERY_SERVICE);
+boolean isCharging = batteryManager.isCharging();
+```
+
+### Getting Charging State with a Sticky Intent
+
+Prior to Android 23+ you needed to use a sticky intent to get battery state. As we've seen, a normal, broadcasted intent will be broadcasted, possibly caught by an intent filter, and then disspear after it is processed. A sticky intent is a broadcast intent that sticks around, allowing your app to access it at any point and get information from the broadcasted intent. In Android, a sticky intent is where the current battery state is saved.
+
+You don't need a broadcast receiver for a sticky intent, but you use similar looking code to registering a receiver:
+
+```java
+IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+Intent batteryStatus = context.registerReceiver(null, ifilter);
+```
+
+Notice how **registerReceiver** is used, but instead of passing in a broadcast receiver, **null** is passed. The intent filter here is the intent filter for the **sticky intent** [Intent.ACTION_BATTERY_CHANGED](https://developer.android.com/reference/android/content/Intent.html#ACTION_BATTERY_CHANGED). The **registerReceiver** method will return an intent, and it is that intent which has all of the battery information, which you can use:
+
+```java
+boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL;
+```
+
+For more information on how to getting information about the battery, check out the [Monitoring the Battery Level and Charging State documentation](https://developer.android.com/training/monitoring-device-state/battery-monitoring.html).
+
+Now that you know how to get battery state, you should be able to complete the following exercise and fix the bug. The code is below.
+
+Note: If you need to check whether the user is on API 23+, you can use the following code:
+
+```java
+if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+```
+## Synchronizing the weather (Sunshine app)
+
+This process is going to be very similar to the one we followed when we created our toy app for this lesson. First, we’re going to create a class that represents the “task” we’re going to perform. Then, we’ll create and register an IntentService that will be able to perform that task. Next, we’ll create a class to handle all of our synchronization. Once that’s done, we can move on to rewiring the app to work with our new synchronization strategy.
+
+### Create SunshineSyncTask
+
+- (1) In order to keep all of our code organized, go ahead and create a class called **SunshineSyncTask**.
+- (2) Within that class, we’re just going to write one method. This method is going to be the main “task” of Sunshine.
+- (3) Call this method **syncWeather**, and within it, move the logic that was previously in our AsyncTaskLoader for loading the weather data.
+- (4) If you fetch valid results, delete the old weather data and insert the new data.
+
+### Create and Register SunshineSyncIntentService
+
+Next, we’ll need a class to handle backgrounding our syncTask. IntentServices are perfect for one off tasks that need to be handled in the background, so we’ll create one here.
+
+- (1) Create **SunshineSyncIntentService** class and set it to extend **IntentService**.
+- (2) Next, create a constructor that calls super and passes the name of this class as a string.
+- (3) Finally, override **onHandleIntent**. Within it, we’ll call SunshineSyncTask.syncWeather
+
+### Create SunshinesyncUtils
+
+Now that we have a way to sync the weather and a way to handle backgrounding that sync, let’s get everything wired up. For that, we’ll create a class called **SunshineSyncUtils**.
+
+- (1) Inside we’ll create a **startImmediateSync** method that will start the IntentService and force an immediate synchronization when called.
+
+## SmarterSyncing
+
+This Exercise is all about optimizing the synchronization process that was made in the previous exercise. It’s best practice to not initialize things more than once, so for that, we will make sure that startImmediateSync will only get called once when the app starts and only if the database was empty.
+
+### To do so, inside SunshineSyncUtils class:
+
+- (1) Create a boolean flag called **sInitialized**. This will be mainly used as a safeguard to prevent calling the synchronize method more than once.
+- (2) Next create an **initialize** method that will use that boolean to guarantee that **startImmediateSync** is called only when necessary!
+- (3) Within it, don’t do any work if the **sInitialized** flag is already set to true. If it isn’t set to true, we want to check to see if our ContentProvider is empty, in case for example the app was just freshly installed and had no data stored yet!.
+- (4) To check if the ContentProvider is empty, simply run a query and get the result count, but do so on a background thread using an **AsyncTask**.
+- (5) If the ContentProvider is in fact empty, go ahead and call **startImmediateSync**.
+
+## Sunshine FirebaseJobDispatcher
+
+Syncing on demand is great, but don’t we want to continuously update the data for our users, even when the app isn’t in the foreground? After all, who wants to sit and wait for their weather data anymore? I know I certainly don’t! Now that we’ve learned about FirebaseJobDispatcher, let’s make use of it in Sunshine!
+
+### Add the FirebaseJobDispatcher dependency
+
+As with any dependency, we’ll need to add FirebaseJobDispatcher to our project. That’s going to be step one here.
+
+### Create our FirebaseJobService
+
+Next, we need to create the Service that FirebaseJobDispatcher runs when it, well, runs our service!
+
+- (1) Let’s create a **jobdispatcher.JobService** called **SunshineFirebaseJobService**. It’s important that we verify that we’ve imported **jobdispatcher.JobService** rather than the Android framework’s **JobService**, because if you do, you’ll definitely have some headaches. Double and triple check that please.
+- (2) Within your Service, override **onStartJob** and call to our **SunshineSyncTask.syncWeather** method in the background.
+- (3) Once the **syncWeather** method finishes, call **jobFinished**, passing the JobParameters argument from **onStartJob** as well as a false value to signify that we don’t have any more work to do.
+- (4) Now, to clean up any mess that may be caused by the framework cancelling our jobs, override **onStopJob**, and stop our background thread that was started in **onStartJob**.
+- (5) Then, return **true** to tell the system, “Yes please, we’d like to be rescheduled to finish that work that we were doing when you so rudely interrupted us.”
+
+### Declare our newly created Service in the Manifest
+
+Although **FirebaseJobDispatcher** JobServices have some cool features, they are still one of those main four components of the Android framework that need to be declared in the **Manifest**. Go ahead and do that now, or your app will crash when **FirebaseJobDispatcher** attempts to run your service.
+
+### Modify SunshineSyncUtils
+
+We created **SunshineSyncUtils** in the last lesson, and we’ll finish it up here.
+
+- (1) Add constant values to represent how frequently, and with what timeframe, we will perform our weather synchronization. Every three to four hours is a good rule of thumb here.
+- (2) While we’re at it, let’s add a tag to identify our sync job. Call it **SUNSHINE_SYNC_TAG**.
+- (3) After that, create the method that builds and dispatchers our Job, and then call that method from the **initialize** method (only if the method hasn’t been previously initialized).
+
+## Sunshine Notifications
+
+### Fill out NotificationUtils
+
+We’ve started this for you, as there is some code that simply has nothing to do with creating notifications, and rather just accessing our data. We wanted you to get right into it, so let's do just that.
+
+- (1) Create a constant int identifier for our notification. This can be used later to access the notification. Very useful for updates and for cancelling ongoing notifications, things like that.
+- (2) Next, create an Intent with the proper Uri to start the **DetailActivity**.
+- (3) We want to navigate back to the **MainActivity** from the **DetailActivity** if the user clicks the Notification and then clicks back, so use **TaskStackBuilder** for that.
+- (4) Finally, assign that intent to the **NotificationBuilder** object so that when the user clicks the notification, it is fired off.
+- (5) In order to notify the user, we need a reference to the **NotificationManager**, so use **getSystemService** to do so.
+- (6) Now that everything is ready, notify the user and also save the time at which we showed this notification. Notifications are totally super awesome, but we don’t want to annoy our users with too many of them.
+
+### Bools and default values
+
+We’ll have a preference for whether or not to show notifications. The default value for this preference will be true, but we don’t want to just hard code that value.
+
+- Create **bools.xml** under **res/values** and within it, create a boolean value set to **true**.
+
+### Should we notify the user when we sync the data?
+
+Using **FirebaseJobDispatcher**, we plan on updating the data from 6 to 8 times a day, depending on exactly when the system decides that’s best. We don’t want to send the user that many notifications, though!
+
+- Within **SunshineSyncTask**, first check to see if notifications are enabled at all. If they are, we’ll also need to check to see when the last time we notified the user was. If it was less than a day ago, it’s better that we hold off, and just keep our user happy that her weather data is up to date and ready to be displayed as soon as she wants it!
+
+
+
+
 
