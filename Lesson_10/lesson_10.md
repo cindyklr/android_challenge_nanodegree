@@ -478,3 +478,102 @@ public static void remindUserBecauseCharging(Context context) {
 ```
 
 ## Foreground Services
+
+A foreground service is a service that the user is actively aware of because Android require that the service post a non-dismissible ongoig notification.
+
+They are typically used to show the user the real time progress of long running operation.
+
+The user can do some rudimentary interactions with your service.
+
+Android will prioritize not shutting these services down if the system is memory constrained.
+
+## Application priority
+
+![](lesson_10_21_application_priority.png "Application Priority")
+
+![](lesson_10_21_law.png "Three laws of Android Resource Management")
+
+## Scheduling Jobs
+
+![](lesson_10_23_schedule_job.png "Schedule Job")
+
+![](lesson_10_23_schedule_job.png "Schedule Job")
+![](lesson_10_23_job_scheduler.png "JobScheduler")
+![](lesson_10_23_compatibility.png "Compatibility")
+![](lesson_10_23_firebase_job_dispatcher.png "Firebase Job Dispatcher")
+![](lesson_10_23_time_window_battery_performance.png "Time window for battery performance")
+
+### FirebaseJobDispatcher Sample Code
+
+```java
+Driver driver = new GooglePlayDriver(context);
+FirebaseJobDispatcher dispatcher = new FirebaseJobDispatcher(driver);
+
+Job myJob = dispatcher.newJobBuilder()
+    // the JobService that will be called
+    .setService(MyJobService.class)
+    // uniquely identifies the job
+    .setTag("complex-job")
+    // one-off job
+    .setRecurring(false)
+    // don't persist past a device reboot
+    .setLifetime(Lifetime.UNTIL_NEXT_BOOT)
+    // start between 0 and 15 minutes (900 seconds)     
+    .setTrigger(Trigger.executionWindow(0, 900))
+    // overwrite an existing job with the same tag
+    .setReplaceCurrent(true)
+    // retry with exponential backoff 
+    .setRetryStrategy(RetryStrategy.DEFAULT_EXPONENTIAL)
+    // constraints that need to be satisfied for the job to run
+    .setConstraints(
+        // only run on an unmetered network
+        Constraint.ON_UNMETERED_NETWORK,
+        // only run when the device is charging
+        Constraint.DEVICE_CHARGING
+    )
+    .build();
+```
+
+For more information, check out the [FirebaseJobDispatcher README](https://github.com/firebase/firebase-jobdispatcher-android). This also includes more sample code.
+
+### What is Google Play Services
+
+You might be wondering what's up with the **GooglePlayDriver**. **FirebaseJobDispatcher** has a dependency on Google Play Services, which is why you need a **GooglePlayDriver**. So what is Google Play Services?
+
+[Google Play Services](https://developers.google.com/android/guides/overview) is [app](https://play.google.com/store/apps/details?id=com.google.android.gms&hl=en) that Google maintains which comes pre-installed on and runs in the background on many, many phones. It is essentially a collection of Services that your app can use to leverage the power of Google products. If the user has the Google Play Services apk installed (and many do) you can use Google Play Services Libraries to easily do things like use the Places API to know where your user is or integrate Google sign in. FirebaseJobDispatcher is one of the many services you can take advantage of via Google Play Services.
+
+Google choose to distribute these services as an installable apk so that updates to the services are not dependent on carrier or OEM system image updates. In general, devices running Android 2.3 (API level 9) or later and have the Google Play services app installed receive updates within a few days.
+
+### Google Play Services Udacity Courses
+
+There are several Udacity courses on how to use Google Play Services features, such as Location services and Maps.
+
+- [Google Location Services](https://eu.udacity.com/course/google-location-services-on-android--ud876-1)
+- [Google Analytics](https://eu.udacity.com/course/google-analytics-for-android--ud876-2)
+- [Google AdMob](https://eu.udacity.com/course/monetize-your-android-app-with-ads--ud876-3)
+- [Google Maps](https://eu.udacity.com/course/add-google-maps-to-your-android-app--ud876-4)
+
+### Installing Google Play Services
+
+To test your app when using the Google Play services SDK, you must use either:
+
+- A compatible Android device that runs Android 2.3 or higher and includes Google Play Store.
+- The Android emulator with an AVD that runs the Google APIs platform based on Android 4.2.2 or higher.
+
+You can install Google Play Services on your physical device via the Google Play Store.
+
+To get Google Play Services on an emulator, you first need to make sure you have Google Play Services installed in the SDK manager:
+
+![](downloadgps.png "Google Play services")
+
+Then you need to create an emulator that uses the Google APIs:
+
+![](includegoogleapis1.png "Google API")
+
+### What if Google Play Services is not Available?
+
+In this class we are only covering **FirebaseJobDispatcher**. Depending on where you're located and who your users are, you might not have access to the Play Store to download Google Play Services. If this is the case, you can use an alternative to FirebaseJobDispatcher known as android-job. [Android-job](https://github.com/evernote/android-job) is very similar to FirebaseJobDispatcher, but it is not a Google maintained repository and it only offers compatibility back to API 14. The FirebaseJobDispatcher documentation contains a [comparison table](https://github.com/firebase/firebase-jobdispatcher-android#comparison-to-other-libraries) that you can use when making this decision.
+
+## Adding a JobService
+
+
