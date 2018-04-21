@@ -77,6 +77,121 @@ Theme = is just a style that's applied to an entire Activity or application and 
 
 ## Style a mail layout
 
+In styles.xml:
+```xml
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+
+    <!-- Style for the activity textViews that are displayed in a list on the main screen-->
+    <style name="ActivityLabelStyle">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">80dp</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:padding">16dp</item>
+        <item name="android:textColor">@android:color/black</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAppearance">?android:textAppearanceMedium</item>
+        <item name="android:layout_marginBottom">8dp</item>
+        <!-- 1. Change the background color for activity views to colorPrimaryLight and their text to black -->
+        <item name="android:background">@color/colorPrimaryLight</item>
+    </style>
+
+    <!-- 2. Create a new style "folderStyle" to group properties for the mail folder text views -->
+    <!-- This style should group all the property values found in the inbox view, like layout_width, height, etc, that are meant to repeat -->
+    <style name="folderStyle">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:drawablePadding">8dp</item>
+        <item name="android:paddingTop">4dp</item>
+        <item name="android:paddingBottom">4dp</item>
+        <item name="android:textSize">28sp</item>
+        <item name="android:textColor">@android:color/black</item>
+    </style>
+
+    <!-- 4. Create a new "inboxStyle" that inherits from "folderStyle" and includes a bold textStyle property -->
+    <style name="inboxStyle" parent="folderStyle">
+        <item name="android:textStyle">bold</item>
+    </style>
+
+</resources>
+
+```
+
+In the layout:
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_main"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.example.android.visualpolish.StyleActivity">
+
+    <!-- All mail folder views -->
+    <!-- 5. Apply the "inboxStyle" to the inbox text view -->
+    <TextView
+        style="@style/inboxStyle"
+        android:drawableStart="@drawable/ic_inbox"
+        android:drawableLeft="@drawable/ic_inbox"
+        android:text="@string/inbox" />
+
+    <!-- 3. Apply the "folderStyle" to all of these views and delete the redundant properties -->
+    <TextView
+        style="@style/folderStyle"
+        android:drawableStart="@drawable/ic_star"
+        android:drawableLeft="@drawable/ic_star"
+        android:text="@string/starred" />
+
+    <TextView
+        style="@style/folderStyle"
+        android:drawableStart="@drawable/ic_drafts"
+        android:drawableLeft="@drawable/ic_drafts"
+        android:text="@string/drafts" />
+
+    <TextView
+        style="@style/folderStyle"
+        android:drawableStart="@drawable/ic_sent"
+        android:drawableLeft="@drawable/ic_sent"
+        android:text="@string/sent" />
+
+    <TextView
+        style="@style/folderStyle"
+        android:drawableStart="@drawable/ic_trash"
+        android:drawableLeft="@drawable/ic_trash"
+        android:text="@string/trash" />
+
+</LinearLayout>
+
+```
+
+## Screen Density
+
+Density is the number of piwels in the physical area of the screen, and it's often mesured in dots per inch or dpi.
+
+![](lesson_12_16_density.png "Density Buckets")
+
+![](lesson_12_16_density_independent_pixels.png "Density-Independent Pixels")
+
+Density-Independent Pixels or dips (dps) are the same physical size on each device => for spacing and images.
+
+## Resource Folder Qualifiers
+
+
+
+
 
 
 
