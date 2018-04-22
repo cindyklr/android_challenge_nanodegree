@@ -187,11 +187,46 @@ Density is the number of piwels in the physical area of the screen, and it's oft
 
 Density-Independent Pixels or dips (dps) are the same physical size on each device => for spacing and images.
 
-## Resource Folder Qualifiers
+## Small Width Qualifiers
 
+-sw```<size in dp>```
 
+![](lesson_12_19_structure_directory.png "Directory Structure")
 
+![](lesson_12_20_qualifers.png " Qualifers")
 
+## Creating a tablet layout
 
+Create a new layout : 
+- Right click on **res** folder
+- Select new **Android resource directory**
+- Choose **Layout** as resource type
+- Select the qualifer **smallest screen width**
+- Type the smallest width and click OK
+- Copy and paste the activity that you want to modifiy for tablets
 
+## Touch Selectors
+
+- Right click on **res** folder
+- Select new **drawable**
+- Choose **Drawable** as Resource type
+- Choose **selector** as Root element
+- Click OK
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 1. Create a new drawable resource,named list_item_selector, choosing "selector" as the root element -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 2. Add the primary light color to three items for: pressed, activated, and selected states -->
+    <item android:drawable="@color/colorPrimaryLight" android:state_pressed="true" />
+    <item android:drawable="@color/colorPrimaryLight" android:state_activated="true" />
+    <item android:drawable="@color/colorPrimaryLight" android:state_selected="true" />
+
+    <!-- 3. Add one more item for the default (unselected) state -->
+    <!-- This should have a default drawable color = "@android:color/background_light" -->
+    <item android:drawable="@android:color/background_light" />
+
+</selector>
+```
 
